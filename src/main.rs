@@ -1,48 +1,102 @@
-use bevy::prelude::App;
-use bevy::prelude::Commands;
-use bevy::prelude::Component;
-use bevy::prelude::IntoScheduleConfigs;
-use bevy::prelude::Query;
-use bevy::prelude::Startup;
-use bevy::prelude::Update;
-use bevy::prelude::With;
-use bevy::DefaultPlugins;
+use bevy::prelude::*;
 
 #[derive(Component)]
-struct Person;
-
-#[derive(Component)]
-struct Name(String);
-
-fn add_people(mut commands: Commands) {
-    commands.spawn((Person, Name("Person 1".to_string())));
-    commands.spawn((Person, Name("Person 2".to_string())));
-    commands.spawn((Person, Name("Person 3".to_string())));
+struct Object {
+    size: f32,
+    position: (f32, f32),
+    movement: (f32, f32),
+    mass: f32,
 }
 
-fn greet_people(query: Query<&Name, With<Person>>) {
-    for name in &query {
-        println!("hello {}!", name.0);
+fn create_blobs(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    commands.spawn(Camera2d);
+    commands.spawn((
+        Object {
+            size: 6371., // km
+            position: (0.0, 0.0),
+            movement: (0.0, 0.0),
+            mass: 6000., // * 10^21 kg
+        },
+        (
+            Mesh2d(meshes.add(Circle::default())),
+            MeshMaterial2d(materials.add(Color::srgb(0., 1., 0.))),
+        ),
+    ));
+    commands.spawn((
+        Object {
+            size: 1737.,                    // km
+            position: (380000., 0.),        // km
+            movement: (0., 1. * 60. * 60.), // km per hour, one frame per hour
+            mass: 73.5,                     // * 10^21 kg
+        },
+        (
+            Mesh2d(meshes.add(Circle::default())),
+            MeshMaterial2d(materials.add(Color::srgb(0.5, 0.5, 1.))),
+        ),
+    ));
+    commands.spawn((
+        Object {
+            size: 1737.,                     // km
+            position: (400000., 0.),         // km
+            movement: (0., 0.5 * 60. * 60.), // km per hour, one frame per hour
+            mass: 1.5,                       // * 10^21 kg
+        },
+        (
+            Mesh2d(meshes.add(Circle::default())),
+            MeshMaterial2d(materials.add(Color::srgb(1., 0., 0.))),
+        ),
+    ));
+}
+
+fn draw(query: Query<(&Object, &mut Transform)>) {
+    const SCALING_FACTOR: f32 = 1000.;
+    for (blob, mut transform) in query {
+        *transform = Transform::from_xyz(
+            blob.position.0 / SCALING_FACTOR,
+            blob.position.1 / SCALING_FACTOR,
+            0.0,
+        )
+        .with_scale(Vec3::splat(blob.size / SCALING_FACTOR));
     }
 }
 
-fn update_people(mut query: Query<&mut Name, With<Person>>) {
-    for mut name in &mut query {
-        if name.0 == "Person 1" {
-            name.0 = "Person 4".to_string();
-            break;
-        }
+fn update_movement_vectors(mut query: Query<&mut Object>) {
+    let mut iter = query.iter_combinations_mut();
+    while let Some([mut blob1, mut blob2]) = iter.fetch_next() {
+        let G = 66.7 * 60. * 60. * 60. * 60.;
+        let v = (
+            blob1.position.0 - blob2.position.0,
+            blob1.position.1 - blob2.position.1,
+        );
+        let r = ops::sqrt(v.0 * v.0 + v.1 * v.1);
+        let F = G * blob1.mass * blob2.mass / (r * r);
+
+        blob1.movement.0 -= v.0 * F / blob1.mass / r;
+        blob1.movement.1 -= v.1 * F / blob1.mass / r;
+        blob2.movement.0 += v.0 * F / blob2.mass / r;
+        blob2.movement.1 += v.1 * F / blob2.mass / r;
     }
 }
 
-fn hello_world() {
-    println!("hello world!");
+fn move_blobs(query: Query<&mut Object>) {
+    for mut blob in query {
+        blob.position.0 += blob.movement.0;
+        blob.position.1 += blob.movement.1;
+    }
 }
+
+fn print_positions(query: Query<&mut Object>) {}
 
 fn main() {
     App::new()
+        .insert_resource(Time::<Fixed>::from_hz(60.0))
+        .add_systems(Startup, create_blobs)
+        .add_systems(FixedUpdate, (update_movement_vectors, move_blobs, draw))
+        .add_systems(FixedUpdate, (print_positions))
         .add_plugins(DefaultPlugins)
-        .add_systems(Startup, add_people)
-        .add_systems(Update, (hello_world, (update_people, greet_people).chain()))
         .run();
 }

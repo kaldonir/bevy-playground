@@ -8,15 +8,22 @@
     in
     {
 
-      devShell.x86_64-linux = pkgs.mkShell {
+      devShell.x86_64-linux = pkgs.mkShell rec {
         buildInputs = with pkgs; [
           rustup
           llvmPackages.bintools-unwrapped
           pkg-config
           alsa-lib
           libudev-zero
-          libx11
+          xorg.libX11
+          xorg.libXcursor
+          xorg.libXi
+          libxkbcommon
+          vulkan-loader
         ];
+        shellHook = ''
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:"${pkgs.lib.makeLibraryPath buildInputs}"
+        '';
       };
 
     };
