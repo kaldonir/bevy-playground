@@ -8,7 +8,7 @@ struct Object {
     mass: f32,
 }
 
-fn create_blobs(
+fn create_objects(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -28,7 +28,7 @@ fn create_blobs(
     ));
     commands.spawn((
         Object {
-            size: 1737.,                    // km
+            size: 1737. * 3.,               // km
             position: (380000., 0.),        // km
             movement: (0., 1. * 60. * 60.), // km per hour, one frame per hour
             mass: 73.5,                     // * 10^21 kg
@@ -40,7 +40,7 @@ fn create_blobs(
     ));
     commands.spawn((
         Object {
-            size: 1737.,                     // km
+            size: 1737. * 3.,                // km
             position: (400000., 0.),         // km
             movement: (0., 0.5 * 60. * 60.), // km per hour, one frame per hour
             mass: 1.5,                       // * 10^21 kg
@@ -66,26 +66,26 @@ fn draw(query: Query<(&Object, &mut Transform)>) {
 
 fn update_movement_vectors(mut query: Query<&mut Object>) {
     let mut iter = query.iter_combinations_mut();
-    while let Some([mut blob1, mut blob2]) = iter.fetch_next() {
+    while let Some([mut object1, mut object2]) = iter.fetch_next() {
         let G = 66.7 * 60. * 60. * 60. * 60.;
         let v = (
-            blob1.position.0 - blob2.position.0,
-            blob1.position.1 - blob2.position.1,
+            object1.position.0 - object2.position.0,
+            object1.position.1 - object2.position.1,
         );
         let r = ops::sqrt(v.0 * v.0 + v.1 * v.1);
-        let F = G * blob1.mass * blob2.mass / (r * r);
+        let F = G * object1.mass * object2.mass / (r * r);
 
-        blob1.movement.0 -= v.0 * F / blob1.mass / r;
-        blob1.movement.1 -= v.1 * F / blob1.mass / r;
-        blob2.movement.0 += v.0 * F / blob2.mass / r;
-        blob2.movement.1 += v.1 * F / blob2.mass / r;
+        object1.movement.0 -= v.0 * F / object1.mass / r;
+        object1.movement.1 -= v.1 * F / object1.mass / r;
+        object2.movement.0 += v.0 * F / object2.mass / r;
+        object2.movement.1 += v.1 * F / object2.mass / r;
     }
 }
 
-fn move_blobs(query: Query<&mut Object>) {
-    for mut blob in query {
-        blob.position.0 += blob.movement.0;
-        blob.position.1 += blob.movement.1;
+fn move_objects(query: Query<&mut Object>) {
+    for mut object in query {
+        object.position.0 += object.movement.0;
+        object.position.1 += object.movement.1;
     }
 }
 
@@ -94,8 +94,8 @@ fn print_positions(query: Query<&mut Object>) {}
 fn main() {
     App::new()
         .insert_resource(Time::<Fixed>::from_hz(60.0))
-        .add_systems(Startup, create_blobs)
-        .add_systems(FixedUpdate, (update_movement_vectors, move_blobs, draw))
+        .add_systems(Startup, create_objects)
+        .add_systems(FixedUpdate, (update_movement_vectors, move_objects, draw))
         .add_systems(FixedUpdate, (print_positions))
         .add_plugins(DefaultPlugins)
         .run();
