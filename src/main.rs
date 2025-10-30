@@ -54,31 +54,31 @@ fn create_objects(
 
 fn draw(query: Query<(&Object, &mut Transform)>) {
     const SCALING_FACTOR: f32 = 1000.;
-    for (blob, mut transform) in query {
+    for (object, mut transform) in query {
         *transform = Transform::from_xyz(
-            blob.position.0 / SCALING_FACTOR,
-            blob.position.1 / SCALING_FACTOR,
+            object.position.0 / SCALING_FACTOR,
+            object.position.1 / SCALING_FACTOR,
             0.0,
         )
-        .with_scale(Vec3::splat(blob.size / SCALING_FACTOR));
+        .with_scale(Vec3::splat(object.size / SCALING_FACTOR));
     }
 }
 
 fn update_movement_vectors(mut query: Query<&mut Object>) {
     let mut iter = query.iter_combinations_mut();
     while let Some([mut object1, mut object2]) = iter.fetch_next() {
-        let G = 66.7 * 60. * 60. * 60. * 60.;
+        let g = 66.7 * 60. * 60. * 60. * 60.;
         let v = (
             object1.position.0 - object2.position.0,
             object1.position.1 - object2.position.1,
         );
         let r = ops::sqrt(v.0 * v.0 + v.1 * v.1);
-        let F = G * object1.mass * object2.mass / (r * r);
+        let f = g * object1.mass * object2.mass / (r * r);
 
-        object1.movement.0 -= v.0 * F / object1.mass / r;
-        object1.movement.1 -= v.1 * F / object1.mass / r;
-        object2.movement.0 += v.0 * F / object2.mass / r;
-        object2.movement.1 += v.1 * F / object2.mass / r;
+        object1.movement.0 -= v.0 * f / object1.mass / r;
+        object1.movement.1 -= v.1 * f / object1.mass / r;
+        object2.movement.0 += v.0 * f / object2.mass / r;
+        object2.movement.1 += v.1 * f / object2.mass / r;
     }
 }
 
@@ -89,14 +89,11 @@ fn move_objects(query: Query<&mut Object>) {
     }
 }
 
-fn print_positions(query: Query<&mut Object>) {}
-
 fn main() {
     App::new()
         .insert_resource(Time::<Fixed>::from_hz(60.0))
         .add_systems(Startup, create_objects)
         .add_systems(FixedUpdate, (update_movement_vectors, move_objects, draw))
-        .add_systems(FixedUpdate, (print_positions))
         .add_plugins(DefaultPlugins)
         .run();
 }
